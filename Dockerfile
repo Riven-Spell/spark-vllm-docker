@@ -298,6 +298,7 @@ ARG CACHEBUST_VLLM=1
 
 # Git reference (branch, tag, or SHA) to checkout
 ARG VLLM_REF=main
+ARG VLLM_REPO=https://github.com/vllm-project/vllm.git
 
 # Pinned while investigating an SM121 DeepSeek-V4 MXFP4 grouped scale-factor
 # regression first observed at nv_dev f8e8fb5 (PR #384); last known good.
@@ -309,14 +310,7 @@ ENV DEEPGEMM_SRC_DIR=/workspace/DeepGEMM
 RUN --mount=type=cache,id=repo-cache,target=/repo-cache \
     echo "CACHEBUST_VLLM=${CACHEBUST_VLLM}" && \
     cd /repo-cache && \
-    if [ ! -d "vllm" ]; then \
-        echo "Cache miss: Cloning vLLM from scratch..." && \
-        git clone --recursive https://github.com/vllm-project/vllm.git; \
-        if [ "$VLLM_REF" != "main" ]; then \
-            cd vllm && \
-            git checkout ${VLLM_REF}; \
-        fi; \
-    else \
+    if [ -d "vllm" ] && [ "$(cd vllm && git remote get-url origin 2>/dev/null)" = "${VLLM_REPO}" ]; then \
         echo "Cache hit: Fetching updates..." && \
         cd vllm && \
         git fetch origin && \
@@ -326,6 +320,14 @@ RUN --mount=type=cache,id=repo-cache,target=/repo-cache \
         git submodule update --init --recursive && \
         git clean -fdx && \
         git gc --auto; \
+    else \
+        [ -d "vllm" ] && echo "Cache directory exists but remote URL differs; re-cloning..." && rm -rf vllm; \
+        echo "Cache miss: Cloning vLLM from scratch..." && \
+        git clone --recursive ${VLLM_REPO}; \
+        if [ "$VLLM_REF" != "main" ]; then \
+            cd vllm && \
+            git checkout ${VLLM_REF}; \
+        fi; \
     fi && \
     cp -a /repo-cache/vllm $VLLM_BASE_DIR/
 

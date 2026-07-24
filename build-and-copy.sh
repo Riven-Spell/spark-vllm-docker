@@ -19,6 +19,8 @@ SSH_USER="$USER"
 NO_BUILD=false
 VLLM_REF="main"
 VLLM_REF_SET=false
+VLLM_REPO="https://github.com/vllm-project/vllm.git"
+VLLM_REPO_SET=false
 FLASHINFER_REF="main"
 FLASHINFER_REF_SET=false
 TMP_IMAGE=""
@@ -399,6 +401,7 @@ usage() {
     echo "  --force-vllm-download         : Force download of vLLM wheels (skip cached wheel checks)"
     echo "  --force-download              : Force download of all prebuilt wheels (skip cached wheel checks)"
     echo "  --vllm-ref <ref>              : vLLM commit SHA, branch or tag (default: 'main')"
+    echo "  --vllm-repo <repo-url>        : vLLM repository URL (default: 'https://github.com/vllm-project/vllm.git')"
     echo "  --flashinfer-ref <ref>        : FlashInfer commit SHA, branch or tag (default: 'main')"
     echo "  -c, --copy-to <hosts>         : Host(s) to copy image to. Accepts comma or space-delimited lists; matching remote image IDs are skipped."
     echo "      --copy-to-host            : Alias for --copy-to (backwards compatibility)."
@@ -436,6 +439,7 @@ while [[ "$#" -gt 0 ]]; do
             FORCE_VLLM_DOWNLOAD=true
             ;;
         --vllm-ref) VLLM_REF="$2"; VLLM_REF_SET=true; shift ;;
+        --vllm-repo) VLLM_REPO="$2"; VLLM_REPO_SET=true; shift ;;
         --flashinfer-ref) FLASHINFER_REF="$2"; FLASHINFER_REF_SET=true; shift ;;
         -c|--copy-to|--copy-to-host|--copy-to-hosts)
             COPY_TO_FLAG=true
@@ -587,6 +591,7 @@ CUSTOM_BUILD_REQUESTED=false
 if [ "$EXP_MXFP4" = true ]; then CUSTOM_BUILD_REQUESTED=true; fi
 if [ "$GPU_ARCH_SET" = true ] && [ "$GPU_ARCH_LIST" != "$DEFAULT_GPU_ARCH_LIST" ]; then CUSTOM_BUILD_REQUESTED=true; fi
 if [ "$VLLM_REF_SET" = true ]; then CUSTOM_BUILD_REQUESTED=true; fi
+if [ "$VLLM_REPO_SET" = true ]; then CUSTOM_BUILD_REQUESTED=true; fi
 if [ "$FLASHINFER_REF_SET" = true ]; then CUSTOM_BUILD_REQUESTED=true; fi
 if [ "$REBUILD_FLASHINFER" = true ]; then CUSTOM_BUILD_REQUESTED=true; fi
 if [ "$REBUILD_VLLM" = true ]; then CUSTOM_BUILD_REQUESTED=true; fi
@@ -679,7 +684,7 @@ if [ "$NO_BUILD" = false ]; then
         generate_build_metadata Dockerfile.mxfp4 "unknown" "$MXFP4_VLLM_SHA" "$MXFP4_FLASHINFER_SHA" \
             "mxfp4-pinned" "false" "true" ""
 
-        CMD=("docker" "build" "-t" "$IMAGE_TAG" "${COMMON_BUILD_FLAGS[@]}" "-f" "Dockerfile.mxfp4" ".")
+        CMD=("docker" "build" "-t" "$IMAGE_TAG" "${COMMON_BUILD_FLAGS[@]}" "--build-arg" "VLLM_REPO=$VLLM_REPO" "-f" "Dockerfile.mxfp4" ".")
         echo "Building image with command: ${CMD[*]}"
         BUILD_START=$(date +%s)
         "${CMD[@]}"
@@ -797,7 +802,8 @@ if [ "$NO_BUILD" = false ]; then
                 "--target" "vllm-export"
                 "--output" "type=local,dest=./wheels"
                 "${COMMON_BUILD_FLAGS[@]}"
-                "--build-arg" "VLLM_REF=$VLLM_REF")
+                "--build-arg" "VLLM_REF=$VLLM_REF"
+                "--build-arg" "VLLM_REPO=$VLLM_REPO")
 
             if [ "$APPLY_PRESET_VLLM_PRS" = true ]; then
                 echo "Applying preset vLLM PRs from the Dockerfile (explicitly requested)."
