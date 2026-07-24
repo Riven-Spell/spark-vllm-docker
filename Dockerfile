@@ -323,7 +323,7 @@ RUN --mount=type=cache,id=repo-cache,target=/repo-cache \
     else \
         [ -d "vllm" ] && echo "Cache directory exists but remote URL differs; re-cloning..." && rm -rf vllm; \
         echo "Cache miss: Cloning vLLM from scratch..." && \
-        git clone --recursive ${VLLM_REPO}; \
+        git clone --recursive ${VLLM_REPO} vllm; \
         if [ "$VLLM_REF" != "main" ]; then \
             cd vllm && \
             git checkout ${VLLM_REF}; \
